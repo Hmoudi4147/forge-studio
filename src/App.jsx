@@ -8,7 +8,9 @@ function App() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -64,7 +66,8 @@ function App() {
     whatsappPosition: "bottom-right",
     cookieBanner: true,
     gaId: "",
-    poweredBy: true
+    poweredBy: true,
+    productGallery: [] // up to 8 uploaded photos
   });
 
   const updateFormData = (path, value) => {
@@ -86,22 +89,40 @@ function App() {
   };
 
   const handleGenerate = async () => {
+    setError(null);
     setLoading(true);
-    const messages = [
-      "Crafting your identity...",
-      "Building your pages...",
-      "Polishing the details...",
-      "Packaging your files..."
-    ];
+    setLoadingProgress(0);
     
-    for (const msg of messages) {
-      setLoadingMessage(msg);
-      await new Promise(r => setTimeout(r, 1500));
+    try {
+      const messages = [
+        "Crafting your identity...",
+        "Building your pages...",
+        "Polishing the details...",
+        "Packaging your files..."
+      ];
+      
+      for (let i = 0; i < messages.length; i++) {
+        setLoadingMessage(messages[i]);
+        setLoadingProgress((i + 1) / messages.length * 70);
+        // Small delay for UX feel
+        if (i < messages.length - 1) {
+          await new Promise(r => setTimeout(r, 800));
+        }
+      }
+      
+      setLoadingMessage("Packaging your files...");
+      setLoadingProgress(85);
+      
+      await generateWebsite(formData);
+      
+      setLoadingProgress(100);
+      await new Promise(r => setTimeout(r, 500));
+      setLoading(false);
+      setSuccess(true);
+    } catch (err) {
+      setError(err.message || "An unexpected error occurred.");
+      setLoading(false);
     }
-    
-    await generateWebsite(formData);
-    setLoading(false);
-    setSuccess(true);
   };
 
   // Sync colors and fonts when template style changes
@@ -152,14 +173,16 @@ function App() {
   if (success) {
     return (
       <div className="fixed inset-0 bg-bg z-50 flex flex-col items-center justify-center noise">
-        <h1 className="text-64 text-gold mb-4">Website Forged!</h1>
+        <h1 className="text-6xl text-gold mb-4 font-serif">✨ Website Forged!</h1>
         <p className="text-text mb-8">Your premium digital presence is ready for the world.</p>
-        <button 
-          onClick={() => setSuccess(false)}
-          className="px-8 py-4 bg-gold text-bg font-bold hover:bg-gold-light transition-colors"
-        >
-          Build Another
-        </button>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => setSuccess(false)}
+            className="px-8 py-4 bg-gold text-bg font-bold hover:bg-gold-light transition-colors uppercase tracking-widest"
+          >
+            Build Another
+          </button>
+        </div>
       </div>
     );
   }
@@ -168,14 +191,25 @@ function App() {
     <div className="min-h-screen bg-bg text-text noise flex flex-col md:flex-row">
       <div className="w-full md:w-[40%] h-screen overflow-y-auto border-r border-border p-8 bg-surface/50 backdrop-blur-md">
         <header className="mb-12">
-          <h1 className="text-4xl text-gold mb-2">FORGE STUDIO</h1>
-          <div className="w-full h-1 bg-border rounded-full">
+          <h1 className="text-4xl text-gold mb-2 font-serif">FORGE STUDIO</h1>
+          {/* Gold Progress Bar */}
+          <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gold transition-all duration-500" 
+              className="h-full bg-gold transition-all duration-500 rounded-full" 
               style={{ width: `${(step / 5) * 100}%` }}
             ></div>
           </div>
-          <p className="text-muted mt-2 font-mono text-xs uppercase tracking-widest">Step {step} of 5</p>
+          <div className="flex justify-between items-center mt-2">
+            <p className="text-muted font-mono text-xs uppercase tracking-widest">Step {step} of 5</p>
+            <p className="text-gold text-[10px] font-mono uppercase tracking-wider">
+              {['Identity', 'Contact', 'Visual', 'Content', 'Launch'][step - 1]}
+            </p>
+          </div>
+          {error && (
+            <div className="mt-3 p-3 bg-red-900/30 border border-red-500/50 text-red-300 text-xs">
+              {error}
+            </div>
+          )}
         </header>
 
         <Wizard 
