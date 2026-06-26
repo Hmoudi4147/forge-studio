@@ -133,87 +133,218 @@ const Wizard = ({ step, setStep, formData, updateFormData, onGenerate }) => {
     setImportError('');
 
     try {
-      // Try using a free CORS proxy + metadata extraction
-      // First attempt: try to fetch via corsproxy.io or use link preview API
       const url = importUrl.trim();
       let businessName = '';
       let description = '';
+      let tagline = '';
       let phone = '';
       let email = '';
       let address = '';
+      let socials = [];
+      let heroImage = '';
+      let yearsInBusiness = '';
 
-      // Attempt 1: Try opengraph.io free tier
+      // Helper to clean domain-based name
+      const domainToName = (hostname) => {
+        return hostname
+          .replace('www.', '')
+          .split('.')[0]
+          .replace(/[-_]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase());
+      };
+
+      // Helper: try to extract structured data from HTML
+      const parseHTML = (html) => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        const ogTitle = doc.querySelector('meta[property="og:title"]')?.content;
+        const ogDesc = doc.querySelector('meta[property="og:description"]')?.content;
+        const ogImage = doc.querySelector('meta[property="og:image"]')?.content;
+        const twitterTitle = doc.querySelector('meta[name="twitter:title"]')?.content;
+        const metaDesc = doc.querySelector('meta[name="description"]')?.content;
+        const pageTitle = doc.querySelector('title')?.textContent;
+        
+        // Business name (prioritize OG title > twitter title > page title)
+        businessName = ogTitle || twitterTitle || pageTitle || '';
+        // Clean trailing "| BusinessName" or "- BusinessName" patterns
+        businessName = businessName.replace(/\s*[|-]\s*.*$/, '').trim();
+        
+        // Description
+        description = ogDesc || metaDesc || '';
+        
+        // Tagline: try og:description or meta description (short version)
+        tagline = (ogDesc || metaDesc || '').split('.')[0];
+        if (tagline.length > 80) tagline = tagline.substring(0, 77) + '...';
+        
+        // Hero image
+        heroImage = ogImage || '';
+        
+        // Phone: look for tel: links, specific patterns
+        const telLinks = doc.querySelectorAll('a[href^="tel:"]');
+        if (telLinks.length > 0) {
+          phone = telLinks[0].href.replace('tel:', '').trim();
+        }
+        if (!phone) {
+          const bodyText = doc.body?.textContent || '';
+          // More precise phone regex for international formats
+          const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{3,9}/g;
+          const matches = bodyText.match(phoneRegex);
+          if (matches) {
+            // Pick the most plausible phone number (not a large number from other content)
+            phone = matches.find(m => m.length >= 7 && m.length <= 20) || matches[0];
+          }
+        }
+        
+        // Email: look for mailto: links first
+        const mailLinks = doc.querySelectorAll('a[href^="mailto:"]');
+        if (mailLinks.length > 0) {
+          email = mailLinks[0].href.replace('mailto:', '').split('?')[0].trim();
+        }
+        if (!email) {
+          const bodyText = doc.body?.textContent || '';
+          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+          const matches = bodyText.match(emailRegex);
+          if (matches) email = matches[0];
+        }
+        
+        // Address: look for structured data or common patterns
+        const addressEl = doc.querySelector('[itemprop="address"]') || 
+                          doc.querySelector('[itemtype*="PostalAddress"]') ||
+                          doc.querySelector('.address, #address, [class*="address"]');
+        if (addressEl) {
+          address = addressEl.textContent?.trim() || '';
+        }
+        if (!address) {
+          const bodyText = doc.body?.textContent || '';
+          const addressRegex = /\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Way|Place|Pl)\s*[,\n]\s*[A-Za-z\s]+,\s*[A-Z]{2}\s*\d{5}/g;
+          const match = bodyText.match(addressRegex);
+          if (match) address = match[0];
+        }
+        
+        // Years in business: look for patterns like "Founded in 2010", "Est. 2010", "20+ years"
+        const bodyText = doc.body?.textContent || '';
+        const foundedMatch = bodyText.match(/(?:founded|established|est\.?|since)\s*(?:in\s*)?(?:19|20)\d{2}/i);
+        if (foundedMatch) {
+          const year = foundedMatch[0].match(/(?:19|20)\d{2}/);
+          if (year) {
+            yearsInBusiness = String(new Date().getFullYear() - parseInt(year[0]));
+          }
+        }
+        if (!yearsInBusiness) {
+          const yearsRegex = /(\d+)\+?\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|in\s*business|serving)/i;
+          const yearsMatch = bodyText.match(yearsRegex);
+          if (yearsMatch) yearsInBusiness = yearsMatch[1];
+        }
+        
+        // Social links
+        const socialPatterns = {
+          instagram: /instagram\.com/i,
+          facebook: /facebook\.com/i,
+          linkedin: /linkedin\.com/i,
+          twitter: /twitter\.com|x\.com/i,
+          tiktok: /tiktok\.com/i,
+          youtube: /youtube\.com/i
+        };
+        
+        doc.querySelectorAll('a[href]').forEach(a => {
+          const href = a.href;
+          for (const [platform, pattern] of Object.entries(socialPatterns)) {
+            if (pattern.test(href) && !socials.find(s => s.platform === platform)) {
+              socials.push({ platform, url: href });
+              break;
+            }
+          }
+        });
+
+        return { businessName, description, tagline, phone, email, address, socials, heroImage, yearsInBusiness, doc };
+      };
+
+      // Attempt 1: Try opengraph.io free tier for OG metadata
+      let html = '';
       try {
         const ogResponse = await fetch(`https://opengraph.io/api/1.1/site/${encodeURIComponent(url)}?app_id=forge-studio-free`);
         if (ogResponse.ok) {
           const ogData = await ogResponse.json();
           businessName = ogData.hybridGraph?.title || ogData.openGraph?.title || '';
           description = ogData.hybridGraph?.description || ogData.openGraph?.description || '';
+          tagline = (description || '').split('.')[0];
+          if (tagline.length > 80) tagline = tagline.substring(0, 77) + '...';
+          heroImage = ogData.openGraph?.image?.url || ogData.hybridGraph?.image || '';
         }
       } catch (e) {
-        // Silently fail, continue to fallback
+        // Silently continue to fallback
       }
 
-      // Attempt 2: Try direct microdata/JSON-LD extraction via corsproxy
+      // Attempt 2: Try direct HTML parsing via CORS proxy
       if (!businessName) {
         try {
           const proxyResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
           if (proxyResponse.ok) {
-            const html = await proxyResponse.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            businessName = doc.querySelector('meta[property="og:title"]')?.content || 
-                          doc.querySelector('title')?.textContent || '';
-            description = doc.querySelector('meta[property="og:description"]')?.content || 
-                         doc.querySelector('meta[name="description"]')?.content || '';
-            
-            // Try to extract contact info
-            const bodyText = doc.body?.textContent || '';
-            const emailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-            if (emailMatch) email = emailMatch[0];
-            
-            const phoneMatch = bodyText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{2,9}/g);
-            if (phoneMatch) phone = phoneMatch[0];
+            html = await proxyResponse.text();
+            const result = parseHTML(html);
+            businessName = result.businessName;
+            description = result.description;
+            tagline = result.tagline;
+            phone = result.phone;
+            email = result.email;
+            address = result.address;
+            socials = result.socials;
+            heroImage = result.heroImage;
+            yearsInBusiness = result.yearsInBusiness;
           }
         } catch (e) {
           // Silently fail
         }
       }
 
-      // Attempt 3: Try to extract from URL itself as fallback
+      // Attempt 3: Try JSONPlaceholder-style structured data extraction
+      if (!businessName && html) {
+        try {
+          // Try JSON-LD structured data
+          const jsonLdScripts = new DOMParser().parseFromString(html, 'text/html').querySelectorAll('script[type="application/ld+json"]');
+          for (const script of jsonLdScripts) {
+            try {
+              const data = JSON.parse(script.textContent);
+              const graph = data['@graph'] || [data];
+              for (const item of graph) {
+                if (item.name && !businessName) businessName = item.name;
+                if (item.description && !description) description = item.description;
+                if (item.telephone && !phone) phone = item.telephone;
+                if (item.email && !email) email = item.email;
+                if (item.address?.streetAddress) address = [item.address.streetAddress, item.address.addressLocality, item.address.addressRegion, item.address.postalCode].filter(Boolean).join(', ');
+                if (item.image && !heroImage) heroImage = typeof item.image === 'string' ? item.image : item.image.url || '';
+              }
+            } catch(e) {}
+          }
+        } catch (e) {}
+      }
+
+      // Attempt 4: Extract from URL hostname as fallback
       if (!businessName) {
         try {
           const hostname = new URL(url).hostname;
-          businessName = hostname
-            .replace('www.', '')
-            .split('.')[0]
-            .replace(/[-]/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
-        } catch (e) {
-          // Ignore
-        }
+          businessName = domainToName(hostname);
+        } catch (e) {}
       }
 
-      if (businessName) {
-        updateFormData('businessName', businessName);
-      }
-      if (description) {
-        updateFormData('description', description);
-      }
-      if (email) {
-        updateFormData('contact.email', email);
-      }
-      if (phone) {
-        updateFormData('contact.phone', phone);
-      }
-      if (address) {
-        updateFormData('contact.address', address);
-      }
-      
+      // Apply extracted data to form
+      if (businessName) updateFormData('businessName', businessName);
+      if (description) updateFormData('description', description);
+      if (tagline) updateFormData('tagline', tagline);
+      if (email) updateFormData('contact.email', email);
+      if (phone) updateFormData('contact.phone', phone);
+      if (address) updateFormData('contact.address', address);
+      if (yearsInBusiness) updateFormData('yearsInBusiness', yearsInBusiness);
+      if (heroImage) updateFormData('heroPhoto', heroImage);
+      if (socials.length > 0) updateFormData('socials', socials);
+
       setImportLoading(false);
       if (!businessName) {
-        setImportError('Could not extract data. Please fill in the fields manually.');
+        setImportError('Could not extract data from this URL. Please fill in manually.');
+      } else {
+        // Show brief success feedback
+        setImportError('');
       }
     } catch (err) {
       setImportLoading(false);

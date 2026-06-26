@@ -422,14 +422,10 @@ const buildServicesPage = (data) => {
 
 // --- GALLERY PAGE ---
 const buildGalleryPage = (data) => {
-  const galleryImages = data.galleryImages.length > 0 ? data.galleryImages : [
-    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1497215842964-222b430dc094?auto=format&fit=crop&q=80&w=800'
-  ];
+  // Use user-uploaded product gallery photos first, THEN legacy galleryImages, then empty
+  const userPhotos = data.productGallery || [];
+  const legacyPhotos = data.galleryImages || [];
+  const galleryImages = userPhotos.length > 0 ? userPhotos : legacyPhotos;
 
   let content = `
 <section class="page-hero">
