@@ -1,5 +1,120 @@
 import { TEMPLATE_CONFIGS } from './constants/templates';
 
+export const SERVICE_EMOJIS = {
+  "Iron/Steel/Metal Factory": {
+    "fabrication": "🔩",
+    "steel": "🔩",
+    "supply": "🏗️",
+    "distribution": "🏗️",
+    "quality": "⭐",
+    "reliability": "🛡️",
+    "fallback": "🔩"
+  },
+  "Law Firm": {
+    "consultation": "⚖️",
+    "contract": "📋",
+    "court": "🏛️",
+    "strategy": "♟️",
+    "justice": "⚖️",
+    "litigation": "🛡️",
+    "fallback": "⚖️"
+  },
+  "Restaurant/Fine Dining": {
+    "menu": "🍽️",
+    "reservation": "📅",
+    "chef": "👨‍🍳",
+    "wine": "🍷",
+    "dining": "🍽️",
+    "event": "🎉",
+    "fallback": "🍽️"
+  },
+  "Real Estate Agency": {
+    "sales": "🏠",
+    "property": "🏢",
+    "management": "🔑",
+    "analysis": "📊",
+    "luxury": "💎",
+    "fallback": "🏠"
+  },
+  "Dental Clinic": {
+    "dentistry": "🦷",
+    "cosmetic": "✨",
+    "restorative": "🛠️",
+    "care": "❤️",
+    "fallback": "🦷"
+  },
+  "Beauty Salon/Spa": {
+    "hair": "💇",
+    "spa": "💆",
+    "nail": "💅",
+    "facial": "🧖",
+    "massage": "💆",
+    "fallback": "✨"
+  },
+  "Gym/Fitness Studio": {
+    "training": "💪",
+    "classes": "🧘",
+    "nutrition": "🥗",
+    "performance": "⚡",
+    "fallback": "💪"
+  },
+  "Airline/Aviation": {
+    "flights": "✈️",
+    "management": "🛩️",
+    "maintenance": "🔧",
+    "charter": "🛫",
+    "fallback": "✈️"
+  },
+  "Construction Company": {
+    "contracting": "🏗️",
+    "design": "📐",
+    "renovation": "🔨",
+    "building": "🏢",
+    "fallback": "🏗️"
+  },
+  "Luxury Hotel/Resort": {
+    "stays": "🏨",
+    "dining": "🍴",
+    "wellness": "🧖",
+    "concierge": "🛎️",
+    "fallback": "🏨"
+  },
+  "Pharmacy/Health Clinic": {
+    "pharmacy": "💊",
+    "consultations": "🩺",
+    "vaccinations": "💉",
+    "clinic": "🏥",
+    "fallback": "💊"
+  },
+  "Boutique/Retail": {
+    "collections": "🛍️",
+    "styling": "👗",
+    "concierge": "🎁",
+    "shopping": "🛒",
+    "fallback": "🛍️"
+  },
+  "Creative Agency": {
+    "brand": "🎨",
+    "marketing": "📱",
+    "content": "✍️",
+    "digital": "💻",
+    "fallback": "🎨"
+  },
+  "Engineering Firm": {
+    "structural": "🏗️",
+    "systems": "⚡",
+    "consulting": "📋",
+    "design": "📐",
+    "fallback": "📐"
+  },
+  "Other": {
+    "service": "⭐",
+    "consultation": "🤝",
+    "support": "💎",
+    "fallback": "⭐"
+  }
+};
+
 export const BUSINESS_TYPES = [
   { value: "Law Firm", primary: "#0D1B2A", secondary: "#C9A84C", hero: "Justice. Strategy. Excellence.", cta: "Book a Consultation", servicesLabel: "Practice Areas" },
   { value: "Real Estate Agency", primary: "#1A1A1A", secondary: "#F5F5F0", hero: "Find Your Perfect Space", cta: "Schedule a Viewing" },
